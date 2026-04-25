@@ -7,6 +7,8 @@ from simulation import AnalysisConfig, analyze_parameter_sets
 DEFAULT_TRIALS = 2000
 DEFAULT_S_GRID_STEPS = 2
 DEFAULT_C_GRID_STEPS = 10
+FRACTION_PRECISION = 2
+LOG2_COMPLEXITY_PRECISION = 0
 
 MIRATH_PARAMS = [
     # Mirath Specification Document, Table 4
@@ -115,7 +117,7 @@ def format_fraction(value):
     """Pretty-print a threshold fraction, preserving infeasible points."""
     if value is None:
         return "infeasible"
-    return f"{value:.3f}"
+    return f"{value:.{FRACTION_PRECISION}f}"
 
 
 def grouped_results(analysis_results):
@@ -164,14 +166,14 @@ def print_threshold_summary(analysis_results, args):
             for result in results:
                 params = result["params"]
                 point = next(point for point in result["points"] if point["fraction_s"] == fraction_s)
-                row = [params.name, f"{point['fraction_s']:.3f}", format_fraction(point["threshold"])]
+                row = [params.name, f"{point['fraction_s']:.{FRACTION_PRECISION}f}", format_fraction(point["threshold"])]
                 value = point["log2_average_complexity_at_threshold"]
                 if value is None:
                     row.append("n/a")
                 elif abs(value) < 5e-4:
-                    row.append("0.0")
+                    row.append(f"{0:.{LOG2_COMPLEXITY_PRECISION}f}")
                 else:
-                    row.append(f"{value:.1f}")
+                    row.append(f"{value:.{LOG2_COMPLEXITY_PRECISION}f}")
                 rows.append(row)
 
         print_aligned_table(rows, left_align_columns={0})
@@ -188,7 +190,7 @@ def print_average_complexity_summary(analysis_results, args):
 
     for mode, attack, results in grouped_results(analysis_results):
         fraction_c_values = results[0]["fraction_c_values"]
-        rows = [["parameter_set", "fraction_S"] + [f"c={fraction_c:.3f}" for fraction_c in fraction_c_values]]
+        rows = [["parameter_set", "fraction_S"] + [f"c={fraction_c:.{FRACTION_PRECISION}f}" for fraction_c in fraction_c_values]]
 
         print()
         print(f"AVG COMPLEXITY | {mode.upper()} | {attack.upper()}")
@@ -196,15 +198,15 @@ def print_average_complexity_summary(analysis_results, args):
         for result in results:
             params = result["params"]
             for row in result["rows"]:
-                values = [params.name, f"{row['fraction_s']:.3f}"]
+                values = [params.name, f"{row['fraction_s']:.{FRACTION_PRECISION}f}"]
                 for cell in row["values"]:
                     value = cell["log2_average_complexity"]
                     if value == float("inf"):
                         values.append("inf")
                     elif abs(value) < 5e-4:
-                        values.append("0.0")
+                        values.append(f"{0:.{LOG2_COMPLEXITY_PRECISION}f}")
                     else:
-                        values.append(f"{value:.1f}")
+                        values.append(f"{value:.{LOG2_COMPLEXITY_PRECISION}f}")
                 rows.append(values)
 
         print_aligned_table(rows, left_align_columns={0})
