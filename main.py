@@ -36,7 +36,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Estimate the fraction of hints needed for polynomial-time kernel search "
-            "(MinRank) and GRS row-space (RSD) under random hint placement."
+            "(MinRank) and GRS row-space (RSD) under configurable hint placement."
         )
     )
     parser.add_argument(
