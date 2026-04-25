@@ -22,7 +22,7 @@ Show all options:
 python main.py --help
 ```
 
-Run for all parameter sets (this prints both the threshold table and the average-complexity table):
+Run for all parameter sets (this prints grouped threshold and average-complexity tables):
 ```bash
 python main.py # might take a few minutes
 ```
@@ -33,11 +33,12 @@ python main.py --name Mirath-1a
 python main.py --name RYDE-1
 ```
 
-Set number of Monte Carlo trials and the hint-fraction grids:
+Set the number of Monte Carlo trials and the hint-fraction grids:
 
 ```bash
 python main.py --trials 5000 --s-grid-steps 20 --c-grid-steps 20
 ```
+Here, `--s-grid-steps` affects both report types, while `--c-grid-steps` affects only the average-complexity tables.
 
 Choose which summary to compute and print:
 
@@ -62,11 +63,14 @@ python main.py --averaging harmonic
 With `mean`, the average complexity is computed as `(sum_i E_i) / TRIALS`, where `E_i` is the complexity in the `i`th trial. With `harmonic`, it is computed as `1 / ((sum_i 1 / E_i) / TRIALS)`.
 The `harmonic` strategy is equivalent to averaging the corresponding success probabilities over all trials. When `distribution=balanced`, all `E_i` are the same, so both averaging strategies give the same result.
 
+Bit-level analysis is only run when the field size is of the form `q = 2^nu` with `nu > 1`. Parameter sets with `q = 2` are therefore skipped in bit mode.
+
 The default command `python main.py` is equivalent to the following:
 ```bash
 # Run for all parameter sets, compute both Fq-entry and bit-level formulas ("mode" option),
-# use 2000 Monte Carlo trials, a 2-step grid for S and a 10-step grid for C', RNG seed 0,
-# print both summaries, average with 1 / average(1/E), and use random C' hint placement.
+# use 2000 Monte Carlo trials, a 2-step grid for S and a 10-step grid for C' in the
+# average-complexity tables, RNG seed 0, print both summaries, average with 1 / average(1/E),
+# and use random C' hint placement.
 python main.py \
   --family all \
   --mode all \
@@ -121,7 +125,7 @@ For `Mirath-1a`, the parameters are `m = 16`, `n = 16`, and `r = 4`. Hence:
 - `S` has dimensions `m x r = 16 x 4`, so it contains `64` entry-level coordinates
 - `C'` has dimensions `r x (n - r) = 4 x 12`, so it contains `48` entry-level coordinates
 
-The options `--s-grid-steps 2` and `--c-grid-steps 10` define the hint-fraction grid:
+The options `--s-grid-steps 2` and `--c-grid-steps 10` define the hint-fraction grid for the average-complexity table:
 - the `S` fractions are `0`, `0.5`, and `1.0`
 - the `C'` fractions are `0`, `0.1`, `0.2`, ..., `1.0`
 
@@ -140,7 +144,13 @@ With `--averaging harmonic`, the reported value is
 E_final = 1 / ((sum_i 1 / E_i) / 2000).
 ```
 
-This value is computed for every grid point and printed as the average-complexity table.
+This value is computed for every grid point and printed in grouped tables:
+- `ENTRY | MINRANK`
+- `ENTRY | RSD`
+- `BIT | MINRANK`
+- `BIT | RSD`
+
+Within each table, the column header is printed once and all relevant parameter sets are listed underneath it.
 
 ### Threshold Table
 
@@ -148,12 +158,24 @@ The threshold table is derived from the same underlying complexity computation, 
 
 For each `S`-hint fraction in the grid, the code finds the minimum `C'`-hint fraction for which the sampled average complexity is at most `2`. This is done by binary search over the `C'`-hint count.
 
+Only `--s-grid-steps` affects the threshold table. The option `--c-grid-steps` is not used there.
+
 With `--s-grid-steps 2`, the threshold table therefore contains one row for each of the three `S` fractions:
 - `0`
 - `0.5`
 - `1.0`
 
 For each of these rows, the code reports the smallest `C'` hint fraction that makes the attack polynomial-time under the convention `average(E) <= 2`, using the selected distribution and averaging mode.
+
+The threshold output is also grouped into the same four tables:
+- `ENTRY | MINRANK`
+- `ENTRY | RSD`
+- `BIT | MINRANK`
+- `BIT | RSD`
+
+Each parameter set occupies one row, with paired columns for each `S` fraction:
+- the minimum `C'` hint fraction
+- `log2_avg_complexity_at_threshold`
 
 Note: the threshold table uses the condition `average(E) <= 2` under the selected averaging mode. Under the `harmonic` averaging rule, this is equivalent to requiring that the average success probability is at least `0.5`. (Further, note that `E` can never be below `1`, so the alternative condition `average(E) <= 1` would only succeed when all sampled complexities `E_i` are equal to `1`, and hence the condition would basically never be satisfied.)
 

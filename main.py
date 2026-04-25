@@ -53,7 +53,7 @@ def parse_args():
         "--mode",
         choices=("all", "entry", "bit"),
         default="all",
-        help="Choose whether to run entry-level, bit-level, or both models.",
+        help="Choose whether to run entry-level, bit-level, or both models. Bit-level analysis is only run for q = 2^nu with nu > 1; other parameter sets are skipped.",
     )
     parser.add_argument(
         "--trials",
@@ -71,7 +71,7 @@ def parse_args():
         "--c-grid-steps",
         type=int,
         default=DEFAULT_C_GRID_STEPS,
-        help="Number of intervals for the C-hint fraction grid between 0 and 1 in the average-complexity report; use 0 to run only fraction_C = 0.",
+        help="Number of intervals for the C-hint fraction grid between 0 and 1 in the average-complexity tables only; use 0 to run only fraction_C = 0. This option does not affect threshold tables.",
     )
     parser.add_argument(
         "--seed",
@@ -118,32 +118,67 @@ def format_fraction(value):
     return f"{value:.3f}"
 
 
+def grouped_results(analysis_results):
+    """Group analysis results by mode and attack in display order."""
+    display_order = (("entry", "minrank"), ("entry", "rsd"), ("bit", "minrank"), ("bit", "rsd"))
+    grouped = {key: [] for key in display_order}
+    for result in analysis_results:
+        key = (result["mode"], result["attack"])
+        if key in grouped:
+            grouped[key].append(result)
+    return [(mode, attack, grouped[(mode, attack)]) for mode, attack in display_order if grouped[(mode, attack)]]
+
+
+def print_aligned_table(rows, left_align_columns):
+    """Print a table with per-column width alignment."""
+    if not rows:
+        return
+
+    widths = [max(len(row[index]) for row in rows) for index in range(len(rows[0]))]
+    for row in rows:
+        formatted = []
+        for index, cell in enumerate(row):
+            if index in left_align_columns:
+                formatted.append(cell.ljust(widths[index]))
+            else:
+                formatted.append(cell.rjust(widths[index]))
+        print("  ".join(formatted))
+
+
 def print_threshold_summary(analysis_results, args):
-    """Print the minimum C'-hint threshold table for each requested analysis."""
+    """Print grouped minimum C'-hint threshold tables."""
     print(f"Monte Carlo trials = {args.trials}")
     print(f"S-grid steps       = {args.s_grid_steps}")
     print(f"Base seed          = {args.seed}")
     print(f"Averaging          = {args.averaging}")
     print(f"Distribution       = {args.distribution}")
 
-    for result in analysis_results:
-        params = result["params"]
+    for mode, attack, results in grouped_results(analysis_results):
+        fraction_s_values = [point["fraction_s"] for point in results[0]["points"]]
+        rows = [["parameter_set", "fraction_S", "min_fraction_C", "log2_avg_complexity_at_threshold"]]
+
         print()
-        print(
-            f"{result['attack'].upper()} | {result['mode'].upper()} | {params.name} "
-            f"(q={params.q}, m={params.m}, n={params.n}, k={params.k}, r={params.r})"
-        )
-        print("fraction_S  min_fraction_C  h_c  log2_avg_complexity_at_threshold")
-        for point in result["points"]:
-            threshold = point["threshold"]
-            threshold_str = format_fraction(threshold)
-            h_c_str = "n/a" if threshold is None else str(point["h_c"])
-            avg_str = "n/a" if threshold is None else f"{point['log2_average_complexity_at_threshold']:.3f}"
-            print(f"{point['fraction_s']:.3f}       {threshold_str:>12}  {h_c_str:>3}  {avg_str:>32}")
+        print(f"THRESHOLDS | {mode.upper()} | {attack.upper()}")
+
+        for fraction_s in fraction_s_values:
+            for result in results:
+                params = result["params"]
+                point = next(point for point in result["points"] if point["fraction_s"] == fraction_s)
+                row = [params.name, f"{point['fraction_s']:.3f}", format_fraction(point["threshold"])]
+                value = point["log2_average_complexity_at_threshold"]
+                if value is None:
+                    row.append("n/a")
+                elif abs(value) < 5e-4:
+                    row.append("0.0")
+                else:
+                    row.append(f"{value:.1f}")
+                rows.append(row)
+
+        print_aligned_table(rows, left_align_columns={0})
 
 
 def print_average_complexity_summary(analysis_results, args):
-    """Print the optional average-complexity grid for each requested analysis."""
+    """Print grouped average-complexity tables."""
     if not analysis_results:
         return
 
@@ -151,26 +186,28 @@ def print_average_complexity_summary(analysis_results, args):
     print(f"Average-complexity C-grid steps = {args.c_grid_steps}")
     print(f"Average-complexity metric       = log2(avg complexity) with averaging={args.averaging}")
 
-    for result in analysis_results:
-        params = result["params"]
+    for mode, attack, results in grouped_results(analysis_results):
+        fraction_c_values = results[0]["fraction_c_values"]
+        rows = [["parameter_set", "fraction_S"] + [f"c={fraction_c:.3f}" for fraction_c in fraction_c_values]]
+
         print()
-        print(
-            f"AVG COMPLEXITY | {result['attack'].upper()} | {result['mode'].upper()} | {params.name} "
-            f"(q={params.q}, m={params.m}, n={params.n}, k={params.k}, r={params.r})"
-        )
-        header = ["fraction_S"] + [f"c={fraction_c:.3f}" for fraction_c in result["fraction_c_values"]]
-        print("  ".join(header))
-        for row in result["rows"]:
-            values = [f"{row['fraction_s']:.3f}"]
-            for cell in row["values"]:
-                value = cell["log2_average_complexity"]
-                if value == float("inf"):
-                    values.append("inf")
-                elif abs(value) < 5e-4:
-                    values.append("0.000")
-                else:
-                    values.append(f"{value:.3f}")
-            print("  ".join(values))
+        print(f"AVG COMPLEXITY | {mode.upper()} | {attack.upper()}")
+
+        for result in results:
+            params = result["params"]
+            for row in result["rows"]:
+                values = [params.name, f"{row['fraction_s']:.3f}"]
+                for cell in row["values"]:
+                    value = cell["log2_average_complexity"]
+                    if value == float("inf"):
+                        values.append("inf")
+                    elif abs(value) < 5e-4:
+                        values.append("0.0")
+                    else:
+                        values.append(f"{value:.1f}")
+                rows.append(values)
+
+        print_aligned_table(rows, left_align_columns={0})
 
 
 def main():

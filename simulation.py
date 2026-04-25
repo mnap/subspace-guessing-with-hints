@@ -23,6 +23,11 @@ def q_to_nu(q):
     return int(math.log2(q))
 
 
+def supports_bit_level(params):
+    """Return whether bit-level analysis applies to this parameter set."""
+    return params.q > 2 and not (params.q & (params.q - 1))
+
+
 def fraction_grid(grid_steps):
     """Build an inclusive uniform grid on [0, 1] with the requested number of intervals."""
     if grid_steps <= 0:
@@ -312,7 +317,16 @@ def analyze_parameter_sets(params_list, config):
 
     for params in params_list:
         attack = attack_for_params(params)
-        modes = ("entry", "bit") if config.mode == "all" else (config.mode,)
+        if config.mode == "all":
+            modes = ["entry"]
+            if supports_bit_level(params):
+                modes.append("bit")
+        elif config.mode == "bit":
+            if not supports_bit_level(params):
+                continue
+            modes = ["bit"]
+        else:
+            modes = [config.mode]
 
         for mode in modes:
             threshold_results.append(
