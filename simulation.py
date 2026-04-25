@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AnalysisConfig:
+    """Configuration for threshold scans and average-complexity grids."""
     trials: int = 2000
     s_grid_steps: int = 10
     c_grid_steps: int = 10
@@ -15,31 +16,37 @@ class AnalysisConfig:
     averaging: str = "reciprocal"
     distribution: str = "fixed"
 
+
 def q_to_nu(q):
+    """Return nu = log2(q) for q = 2^nu, which is required in bit-level mode."""
     if q < 2 or q & (q - 1):
         raise ValueError(f"bit-level analysis requires q to be a power of two, got q={q}")
     return int(math.log2(q))
 
 
 def fraction_grid(grid_steps):
+    """Build an inclusive uniform grid on [0, 1] with the requested number of intervals."""
     if grid_steps <= 0:
         return [0.0]
     return [index / grid_steps for index in range(grid_steps + 1)]
 
 
 def capacity_s(params, mode):
+    """Total number of hintable coordinates in S for the selected hint model."""
     if mode == "entry":
         return params.m * params.r
     return q_to_nu(params.q) * params.m * params.r
 
 
 def capacity_c(params, mode):
+    """Total number of hintable coordinates in C' for the selected hint model."""
     if mode == "entry":
         return params.r * (params.n - params.r)
     return q_to_nu(params.q) * params.r * (params.n - params.r)
 
 
 def kernel_search_complexity(params, h_s, h_c, t_c):
+    """Return the kernel-search base, exponent, and ell from the entry-level formula."""
     reduced_k = max(0, params.k - h_s)
     ell = max(0, min(params.n - params.r, params.n - params.r - math.ceil(reduced_k / params.m)))
     exponent = params.r * math.ceil(reduced_k / params.m) - h_c + t_c
@@ -47,6 +54,7 @@ def kernel_search_complexity(params, h_s, h_c, t_c):
 
 
 def kernel_search_bit_complexity(params, h_s, h_c, t_c):
+    """Return the kernel-search base, exponent, and ell from the bit-level formula."""
     nu = q_to_nu(params.q)
     reduced_k = max(0.0, params.k - (h_s / nu))
     ell = max(0, min(params.n - params.r, params.n - params.r - math.ceil(reduced_k / params.m)))
@@ -55,12 +63,14 @@ def kernel_search_bit_complexity(params, h_s, h_c, t_c):
 
 
 def row_space_grs_complexity(params, h_s, h_c, t_c):
+    """Return the row-space GRS base, exponent, and ell from the entry-level formula."""
     ell = max(0, min(params.n - params.r, params.n - params.k - params.r + math.floor(h_s / params.m)))
     exponent = params.r * (params.k - math.floor(h_s / params.m)) - h_c + t_c
     return params.q, exponent, ell
 
 
 def row_space_grs_bit_complexity(params, h_s, h_c, t_c):
+    """Return the row-space GRS base, exponent, and ell from the bit-level formula."""
     nu = q_to_nu(params.q)
     ell = max(0, min(params.n - params.r, params.n - params.k - params.r + math.floor(h_s / (nu * params.m))))
     exponent = nu * params.r * (params.k - math.floor(h_s / (nu * params.m))) - h_c + t_c
@@ -68,6 +78,7 @@ def row_space_grs_bit_complexity(params, h_s, h_c, t_c):
 
 
 def sample_t_c_fixed(total_capacity, num_columns, ell, h_c, rng):
+    """Sample t_c when exactly h_c C' hints are placed uniformly without replacement."""
     if num_columns <= 0 or ell <= 0 or h_c <= 0:
         return 0
     column_capacity = total_capacity // num_columns
@@ -79,6 +90,7 @@ def sample_t_c_fixed(total_capacity, num_columns, ell, h_c, rng):
 
 
 def sample_t_c_balanced(total_capacity, num_columns, ell, h_c):
+    """Compute t_c for the most balanced placement of h_c hints across C' columns."""
     if num_columns <= 0 or ell <= 0 or h_c <= 0:
         return 0
     h_c = min(h_c, total_capacity)
@@ -92,6 +104,7 @@ def sample_t_c_balanced(total_capacity, num_columns, ell, h_c):
 
 
 def sample_trial(params, attack, mode, target_h_s, target_h_c, distribution, rng):
+    """Sample one hint pattern and return the resulting exponential complexity term."""
     if attack == "minrank" and mode == "entry":
         complexity_function = kernel_search_complexity
         total_capacity = capacity_c(params, mode)
@@ -131,6 +144,7 @@ def sample_trial(params, attack, mode, target_h_s, target_h_c, distribution, rng
 
 
 def average_complexity(params, attack, mode, h_s, h_c, trials, seed, averaging, distribution):
+    """Estimate average exponential complexity over random C' hint placements."""
     if trials <= 0:
         raise ValueError("trials must be positive")
 
@@ -174,6 +188,7 @@ def average_complexity(params, attack, mode, h_s, h_c, trials, seed, averaging, 
 
 
 def threshold_for_fraction_s(params, attack, mode, fraction_s, config):
+    """Binary-search the smallest h_c whose sampled average complexity is at most 2."""
     max_h_s = capacity_s(params, mode)
     max_h_c = capacity_c(params, mode)
     h_s = min(max_h_s, int(round(fraction_s * max_h_s)))
@@ -234,6 +249,7 @@ def threshold_for_fraction_s(params, attack, mode, fraction_s, config):
 
 
 def average_complexity_grid(params, attack, mode, config):
+    """Evaluate average complexity on the full (fraction_S, fraction_C) grid."""
     max_h_s = capacity_s(params, mode)
     max_h_c = capacity_c(params, mode)
     fraction_s_values = fraction_grid(config.s_grid_steps)
@@ -286,6 +302,7 @@ def average_complexity_grid(params, attack, mode, config):
 
 
 def scan_parameter_sets(params_list, config):
+    """Run the requested scans for each preset parameter set."""
     threshold_results = []
     average_results = []
 

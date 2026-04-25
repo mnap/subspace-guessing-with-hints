@@ -30,6 +30,7 @@ ALL_PARAMS = MIRATH_PARAMS + RYDE_PARAMS
 
 
 def parse_args():
+    """Parse CLI options for selecting presets and Monte Carlo scan settings."""
     parser = argparse.ArgumentParser(
         description=(
             "Estimate the fraction of hints needed for polynomial-time kernel search "
@@ -103,7 +104,9 @@ def parse_args():
     )
     return parser.parse_args()
 
+
 def select_params(args):
+    """Filter the built-in parameter sets according to CLI family and name selectors."""
     params = ALL_PARAMS
     if args.family != "all":
         params = [param for param in params if param.family == args.family]
@@ -114,12 +117,14 @@ def select_params(args):
 
 
 def format_fraction(value):
+    """Pretty-print a threshold fraction, preserving infeasible points."""
     if value is None:
         return "infeasible"
     return f"{value:.3f}"
 
 
 def print_threshold_summary(analysis_results, args):
+    """Print the minimum C'-hint threshold table for each requested analysis."""
     print(f"Monte Carlo trials = {args.trials}")
     print(f"S-grid steps       = {args.s_grid_steps}")
     print(f"Base seed          = {args.seed}")
@@ -144,6 +149,7 @@ def print_threshold_summary(analysis_results, args):
 
 
 def print_average_complexity_summary(analysis_results, args):
+    """Print the optional average-complexity grid for each requested analysis."""
     if not analysis_results:
         return
 
@@ -174,6 +180,7 @@ def print_average_complexity_summary(analysis_results, args):
 
 
 def main():
+    """Run the CLI entry point."""
     args = parse_args()
     params = select_params(args)
     if not params:
