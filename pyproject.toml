@@ -1,7 +1,8 @@
 [project]
-name = "hint-threshold-analyzer"
-version = "0.1.0"
-description = "Analyze hint fractions needed for polynomial-time MinRank and RSD attacks."
+name = "subspace-guessing-and-hints-in-rank-metric"
+version = "1.0.0"
+description = "Compute complexity of solving the MinRank and RSD problem given hints in the rank decomposition of the secret low-rank matrix."
+readme = "README.md"
 requires-python = ">=3.13"
 
 [tool.uv]

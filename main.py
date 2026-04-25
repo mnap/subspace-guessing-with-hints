@@ -1,11 +1,11 @@
 import argparse
 from types import SimpleNamespace
 
-from simulation import AnalysisConfig, scan_parameter_sets
+from simulation import AnalysisConfig, analyze_parameter_sets
 
 
 DEFAULT_TRIALS = 2000
-DEFAULT_S_GRID_STEPS = 10
+DEFAULT_S_GRID_STEPS = 2
 DEFAULT_C_GRID_STEPS = 10
 
 MIRATH_PARAMS = [
@@ -30,7 +30,7 @@ ALL_PARAMS = MIRATH_PARAMS + RYDE_PARAMS
 
 
 def parse_args():
-    """Parse CLI options for selecting presets and Monte Carlo scan settings."""
+    """Parse CLI options for selecting parameter sets and analysis settings."""
     parser = argparse.ArgumentParser(
         description=(
             "Estimate the fraction of hints needed for polynomial-time kernel search "
@@ -41,19 +41,13 @@ def parse_args():
         "--family",
         choices=("all", "mirath", "ryde"),
         default="all",
-        help="Restrict the default scan to one preset family.",
+        help="Restrict the default analysis to one parameter family.",
     )
     parser.add_argument(
         "--name",
         action="append",
         default=[],
-        help="Analyze only the named preset(s). Can be passed multiple times.",
-    )
-    parser.add_argument(
-        "--attack",
-        choices=("all", "minrank", "rsd"),
-        default="all",
-        help="Restrict which attack formulas are evaluated.",
+        help="Analyze only the named parameter set(s). Can be passed multiple times.",
     )
     parser.add_argument(
         "--mode",
@@ -86,27 +80,28 @@ def parse_args():
         help="Base RNG seed for repeatable Monte Carlo estimates.",
     )
     parser.add_argument(
-        "--show-average-complexity",
-        action="store_true",
-        help="Also print a separate grid of log2 average complexity under the selected averaging strategy.",
+        "--report",
+        choices=("thresholds", "average", "both"),
+        default="both",
+        help="Choose which summary to print: threshold table, average-complexity table, or both.",
     )
     parser.add_argument(
         "--averaging",
-        choices=("reciprocal", "mean_e"),
-        default="reciprocal",
-        help="How to average sampled complexities: reciprocal means 1 / average(1/E), mean_e means average(E).",
+        choices=("harmonic", "mean"),
+        default="harmonic",
+        help="How to average sampled complexities: harmonic means 1 / average(1/E), mean means average(E).",
     )
     parser.add_argument(
         "--distribution",
-        choices=("fixed", "balanced"),
-        default="fixed",
-        help="How to sample C' hints: fixed total without replacement, or as balanced across columns as possible.",
+        choices=("random", "balanced"),
+        default="random",
+        help="How to sample C' hints: random placement with fixed total weight, or as balanced across columns as possible.",
     )
     return parser.parse_args()
 
 
 def select_params(args):
-    """Filter the built-in parameter sets according to CLI family and name selectors."""
+    """Filter the parameter sets according to CLI family and name selectors."""
     params = ALL_PARAMS
     if args.family != "all":
         params = [param for param in params if param.family == args.family]
@@ -138,14 +133,13 @@ def print_threshold_summary(analysis_results, args):
             f"{result['attack'].upper()} | {result['mode'].upper()} | {params.name} "
             f"(q={params.q}, m={params.m}, n={params.n}, k={params.k}, r={params.r})"
         )
-        print("fraction_S  min_fraction_C  h_c  log2_avg_complexity  p_avg_at_threshold")
+        print("fraction_S  min_fraction_C  h_c  log2_avg_complexity_at_threshold")
         for point in result["points"]:
             threshold = point["threshold"]
             threshold_str = format_fraction(threshold)
             h_c_str = "n/a" if threshold is None else str(point["h_c"])
-            avg_str = "n/a" if threshold is None else f"{point['log2_average_complexity']:.3f}"
-            probability_str = "n/a" if threshold is None else f"{point['p_avg']:.6f}"
-            print(f"{point['fraction_s']:.3f}       {threshold_str:>12}  {h_c_str:>3}  {avg_str:>19}  {probability_str}")
+            avg_str = "n/a" if threshold is None else f"{point['log2_average_complexity_at_threshold']:.3f}"
+            print(f"{point['fraction_s']:.3f}       {threshold_str:>12}  {h_c_str:>3}  {avg_str:>32}")
 
 
 def print_average_complexity_summary(analysis_results, args):
@@ -191,15 +185,15 @@ def main():
         s_grid_steps=args.s_grid_steps,
         c_grid_steps=args.c_grid_steps,
         base_seed=args.seed,
-        attack=args.attack,
         mode=args.mode,
-        show_average_complexity=args.show_average_complexity,
+        report=args.report,
         averaging=args.averaging,
         distribution=args.distribution,
     )
-    results = scan_parameter_sets(params, config)
-    print_threshold_summary(results["thresholds"], args)
-    if args.show_average_complexity:
+    results = analyze_parameter_sets(params, config)
+    if args.report in ("thresholds", "both"):
+        print_threshold_summary(results["thresholds"], args)
+    if args.report in ("average", "both"):
         print_average_complexity_summary(results["average_complexity"], args)
 
 

@@ -5,16 +5,15 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AnalysisConfig:
-    """Configuration for threshold scans and average-complexity grids."""
+    """Configuration for threshold and average-complexity analyses."""
     trials: int = 2000
-    s_grid_steps: int = 10
+    s_grid_steps: int = 2
     c_grid_steps: int = 10
     base_seed: int = 0
-    attack: str = "all"
     mode: str = "all"
-    show_average_complexity: bool = False
-    averaging: str = "reciprocal"
-    distribution: str = "fixed"
+    report: str = "both"
+    averaging: str = "harmonic"
+    distribution: str = "random"
 
 
 def q_to_nu(q):
@@ -77,7 +76,16 @@ def row_space_grs_bit_complexity(params, h_s, h_c, t_c):
     return 2, exponent, ell
 
 
-def sample_t_c_fixed(total_capacity, num_columns, ell, h_c, rng):
+def attack_for_params(params):
+    """Return the attack associated with a parameter family."""
+    if params.family == "mirath":
+        return "minrank"
+    if params.family == "ryde":
+        return "rsd"
+    raise ValueError(f"Unsupported parameter family: {params.family}")
+
+
+def sample_t_c_random(total_capacity, num_columns, ell, h_c, rng):
     """Sample t_c when exactly h_c C' hints are placed uniformly without replacement."""
     if num_columns <= 0 or ell <= 0 or h_c <= 0:
         return 0
@@ -123,9 +131,9 @@ def sample_trial(params, attack, mode, target_h_s, target_h_c, distribution, rng
     num_columns = params.n - params.r
     base, exponent_without_t_c, ell = complexity_function(params, target_h_s, target_h_c, 0)
 
-    if distribution == "fixed":
+    if distribution == "random":
         actual_h_c = target_h_c
-        t_c = sample_t_c_fixed(total_capacity, num_columns, ell, actual_h_c, rng)
+        t_c = sample_t_c_random(total_capacity, num_columns, ell, actual_h_c, rng)
     elif distribution == "balanced":
         actual_h_c = target_h_c
         t_c = sample_t_c_balanced(total_capacity, num_columns, ell, actual_h_c)
@@ -169,9 +177,9 @@ def average_complexity(params, attack, mode, h_s, h_c, trials, seed, averaging, 
     mean_raw = total_raw / trials
     mean_inverse = total_inverse / trials
 
-    if averaging == "reciprocal":
+    if averaging == "harmonic":
         avg_complexity = math.inf if mean_inverse == 0.0 else 1.0 / mean_inverse
-    elif averaging == "mean_e":
+    elif averaging == "mean":
         avg_complexity = mean_raw
     else:
         raise ValueError(f"Unsupported averaging strategy: {averaging}")
@@ -180,8 +188,7 @@ def average_complexity(params, attack, mode, h_s, h_c, trials, seed, averaging, 
         "h_s": h_s,
         "h_c": h_c,
         "ell": last_ell,
-        "p_avg": mean_inverse,
-        "mean_e": mean_raw,
+        "mean": mean_raw,
         "average_complexity": avg_complexity,
         "log2_average_complexity": math.inf if avg_complexity == math.inf else math.log2(avg_complexity),
     }
@@ -229,10 +236,9 @@ def threshold_for_fraction_s(params, attack, mode, fraction_s, config):
             "ell": None,
             "threshold": None,
             "h_c": None,
-            "p_avg": None,
-            "mean_e": None,
+            "mean": None,
             "average_complexity": None,
-            "log2_average_complexity": None,
+            "log2_average_complexity_at_threshold": None,
         }
 
     return {
@@ -241,10 +247,9 @@ def threshold_for_fraction_s(params, attack, mode, fraction_s, config):
         "ell": best_result["ell"],
         "threshold": best_result["h_c"] / max_h_c if max_h_c else 0.0,
         "h_c": best_result["h_c"],
-        "p_avg": best_result["p_avg"],
-        "mean_e": best_result["mean_e"],
+        "mean": best_result["mean"],
         "average_complexity": best_result["average_complexity"],
-        "log2_average_complexity": best_result["log2_average_complexity"],
+        "log2_average_complexity_at_threshold": best_result["log2_average_complexity"],
     }
 
 
@@ -284,8 +289,7 @@ def average_complexity_grid(params, attack, mode, config):
                 {
                     "fraction_c": fraction_c,
                     "h_c": h_c,
-                    "p_avg": result["p_avg"],
-                    "mean_e": result["mean_e"],
+                    "mean": result["mean"],
                     "average_complexity": result["average_complexity"],
                     "log2_average_complexity": result["log2_average_complexity"],
                 }
@@ -301,34 +305,29 @@ def average_complexity_grid(params, attack, mode, config):
     }
 
 
-def scan_parameter_sets(params_list, config):
-    """Run the requested scans for each preset parameter set."""
+def analyze_parameter_sets(params_list, config):
+    """Run the requested analyses for each parameter set."""
     threshold_results = []
     average_results = []
 
     for params in params_list:
-        if config.attack == "all":
-            attacks = ("minrank",) if params.family == "mirath" else ("rsd",)
-        else:
-            attacks = (config.attack,)
-
+        attack = attack_for_params(params)
         modes = ("entry", "bit") if config.mode == "all" else (config.mode,)
 
-        for attack in attacks:
-            for mode in modes:
-                threshold_results.append(
-                    {
-                        "params": params,
-                        "attack": attack,
-                        "mode": mode,
-                        "points": [
-                            threshold_for_fraction_s(params, attack, mode, fraction_s, config)
-                            for fraction_s in fraction_grid(config.s_grid_steps)
-                        ],
-                    }
-                )
-                if config.show_average_complexity:
-                    average_results.append(average_complexity_grid(params, attack, mode, config))
+        for mode in modes:
+            threshold_results.append(
+                {
+                    "params": params,
+                    "attack": attack,
+                    "mode": mode,
+                    "points": [
+                        threshold_for_fraction_s(params, attack, mode, fraction_s, config)
+                        for fraction_s in fraction_grid(config.s_grid_steps)
+                    ],
+                }
+            )
+            if config.report in ("average", "both"):
+                average_results.append(average_complexity_grid(params, attack, mode, config))
 
     return {
         "thresholds": threshold_results,
