@@ -1,5 +1,5 @@
 [project]
-name = "subspace-guessing-and-hints-in-rank-metric"
+name = "subspace-guessing-and-rank-metric-hints"
 version = "1.0.0"
 description = "Compute complexity of solving the MinRank and RSD problem given hints in the rank decomposition of the secret low-rank matrix."
 readme = "README.md"

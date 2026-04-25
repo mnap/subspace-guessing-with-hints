@@ -3,6 +3,6 @@ revision = 1
 requires-python = ">=3.13"
 
 [[package]]
-name = "subspace-guessing-and-hints-in-rank-metric"
+name = "subspace-guessing-and-rank-metric-hints"
 version = "1.0.0"
 source = { virtual = "." }
