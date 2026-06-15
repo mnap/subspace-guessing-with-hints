@@ -1,12 +1,20 @@
 import argparse
 from types import SimpleNamespace
 
-from simulation import AnalysisConfig, analyze_parameter_sets
+from simulation import (
+    DEFAULT_AVERAGING,
+    DEFAULT_BASE_SEED,
+    DEFAULT_C_GRID_STEPS,
+    DEFAULT_DISTRIBUTION,
+    DEFAULT_MODE,
+    DEFAULT_REPORT,
+    DEFAULT_S_GRID_STEPS,
+    DEFAULT_TRIALS,
+    AnalysisConfig,
+    analyze_parameter_sets,
+)
 
 
-DEFAULT_TRIALS = 2000
-DEFAULT_S_GRID_STEPS = 2
-DEFAULT_C_GRID_STEPS = 10
 FRACTION_PRECISION = 2
 LOG2_COMPLEXITY_PRECISION = 0
 
@@ -54,7 +62,7 @@ def parse_args():
     parser.add_argument(
         "--mode",
         choices=("all", "entry", "bit"),
-        default="all",
+        default=DEFAULT_MODE,
         help="Choose whether to run entry-level, bit-level, or both models. Bit-level analysis is only run for q = 2^nu with nu > 1; other parameter sets are skipped.",
     )
     parser.add_argument(
@@ -78,25 +86,25 @@ def parse_args():
     parser.add_argument(
         "--seed",
         type=int,
-        default=0,
+        default=DEFAULT_BASE_SEED,
         help="Base RNG seed for repeatable Monte Carlo estimates.",
     )
     parser.add_argument(
         "--report",
         choices=("thresholds", "average", "both"),
-        default="both",
+        default=DEFAULT_REPORT,
         help="Choose which summary to print: threshold table, average-complexity table, or both.",
     )
     parser.add_argument(
         "--averaging",
         choices=("harmonic", "mean"),
-        default="harmonic",
+        default=DEFAULT_AVERAGING,
         help="How to average sampled complexities: harmonic means 1 / average(1/E), mean means average(E).",
     )
     parser.add_argument(
         "--distribution",
         choices=("random", "balanced"),
-        default="random",
+        default=DEFAULT_DISTRIBUTION,
         help="How to sample C' hints: random placement with fixed total weight, or as balanced across columns as possible.",
     )
     return parser.parse_args()

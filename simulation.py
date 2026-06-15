@@ -3,17 +3,27 @@ import random
 from dataclasses import dataclass
 
 
+DEFAULT_TRIALS = 2000
+DEFAULT_S_GRID_STEPS = 0
+DEFAULT_C_GRID_STEPS = 10
+DEFAULT_BASE_SEED = 0
+DEFAULT_MODE = "all"
+DEFAULT_REPORT = "both"
+DEFAULT_AVERAGING = "harmonic"
+DEFAULT_DISTRIBUTION = "random"
+
+
 @dataclass(frozen=True)
 class AnalysisConfig:
     """Configuration for threshold and average-complexity analyses."""
-    trials: int = 2000
-    s_grid_steps: int = 2
-    c_grid_steps: int = 10
-    base_seed: int = 0
-    mode: str = "all"
-    report: str = "both"
-    averaging: str = "harmonic"
-    distribution: str = "random"
+    trials: int = DEFAULT_TRIALS
+    s_grid_steps: int = DEFAULT_S_GRID_STEPS
+    c_grid_steps: int = DEFAULT_C_GRID_STEPS
+    base_seed: int = DEFAULT_BASE_SEED
+    mode: str = DEFAULT_MODE
+    report: str = DEFAULT_REPORT
+    averaging: str = DEFAULT_AVERAGING
+    distribution: str = DEFAULT_DISTRIBUTION
 
 
 def q_to_nu(q):

@@ -46,7 +46,7 @@ Options:
                         How to sample C' hints: random placement with fixed total weight, or as balanced across columns as possible.
 ```
 
-Run for all parameter sets (prints threshold and average-complexity tables):
+Run for all parameter sets and reproduce the values in the full version of the paper:
 ```bash
 python main.py # might take a few minutes
 ```
@@ -54,23 +54,9 @@ python main.py # might take a few minutes
 The above default command `python main.py` is equivalent to the following:
 ```bash
 # Run for all parameter sets, compute both Fq-entry and bit-level formulas ("mode" option),
-# use 2000 Monte Carlo trials, a 2-step grid for S and a 10-step grid for C' in the
+# use 2000 Monte Carlo trials, only fraction_S = 0 and a 10-step grid for C' in the
 # average-complexity tables, RNG seed 0, print both summaries, average with 1 / average(1/E),
 # and use random C' hint placement.
-python main.py \
-  --family all \
-  --mode all \
-  --trials 2000 \
-  --s-grid-steps 2 \
-  --c-grid-steps 10 \
-  --seed 0 \
-  --report both \
-  --averaging harmonic \
-  --distribution random
-```
-
-To reproduce the values in the full version of the paper, run the following:
-```bash
 python main.py \
   --family all \
   --mode all \
