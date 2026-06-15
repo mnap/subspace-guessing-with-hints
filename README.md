@@ -1,4 +1,4 @@
-# Code Supplement to Paper
+# Code Supplement for Subspace Guessing with Hints
 Paper: **Subspace Guessing and Rank-Metric Solvers with Hints** by *Anmoal Porwal, Harrison Banda, Jan Brinkmann, Anna Baumeister, Juliane Krämer, Antonia Wachter-Zeh* (Full version: https://eprint.iacr.org/2026/132).
 
 This repository can be used to
